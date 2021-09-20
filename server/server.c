@@ -15,9 +15,8 @@ typedef struct server_data {
     pthread_mutex_t queue_mutex;
     pthread_mutex_t connection_mutex;
     list_t *connections;
-    list_t *message_queue_tail;
     list_t *message_history;
-    list_t *message_queue_head;
+    list_t *message_queue;
     int sock;
     int is_running;
 } server_data_t;
@@ -63,16 +62,29 @@ int queue_routine (server_data_t *shared) {
     pthread_mutex_lock(&shared->queue_mutex);
     while (shared->is_running)
     {
-        pthread_cond_wait(&shared->queue_cond, &shared->queue_mutex);//разблокируется в acceptor_routine->connection_routine->append
-        while (shared->message_queue_head)
+
+        pthread_cond_wait(&shared->queue_cond, &shared->queue_mutex);
+        while (shared->message_queue)
         {
-            server_message_t *msg = shared->message_queue_head->data;
+
+            if (!shared->message_queue)
+                shared->message_queue = shared->message_history;
+            list_t *iter;
+
+            iter = shared->message_queue;
+            while (iter )
+            {
+                server_message_t *current=iter->data;
+                iter = iter->next;
+            }
+            list_t *iter1;
+
+            server_message_t *msg = shared->message_queue->data;
 
             msg->timestamp = time(NULL);
             msg->id = ++id;
 
             pthread_mutex_lock(&shared->history_mutex);
-            shared->message_history = list_insert_after(shared->message_history, msg);
             pthread_mutex_unlock(&shared->history_mutex);
 
             show_message(stdscr, msg);
@@ -80,21 +92,21 @@ int queue_routine (server_data_t *shared) {
 
             send_mes_to_clients(shared,msg);
 
-            shared->message_queue_head = shared->message_queue_head->next;
-            if (shared->message_queue_head)
-                list_remove(shared->message_queue_head->prev);
+            shared->message_queue = shared->message_queue->next;
+            if (shared->message_queue)
+                list_remove(shared->message_queue->prev);
         }
     }
     pthread_mutex_unlock(&shared->queue_mutex);
     return 0;
 }
 
-static void queue_append(server_data_t *shared, server_message_t *msg) {
+static void queue_append(server_data_t *shared, server_message_t *msg)
+{
     pthread_mutex_lock(&shared->queue_mutex);
-    shared->message_queue_tail =
-            list_insert_after(shared->message_queue_tail, msg);
-    if (!shared->message_queue_head)
-        shared->message_queue_head = shared->message_queue_tail;
+   shared->message_history= list_insert_after(shared->message_history, msg);
+   if (!shared->message_queue)
+       shared->message_queue = shared->message_history;
     pthread_mutex_unlock(&shared->queue_mutex);
     pthread_cond_signal(&shared->queue_cond);
 }
@@ -201,8 +213,7 @@ int run_server(int argc, char **argv) {
     server_data_t shared;
     shared.sock = init_server_socket(atoi(argv[2]));
     shared.connections = NULL;
-    shared.message_queue_head = NULL;
-    shared.message_queue_tail = NULL;
+    shared.message_queue = NULL;
     shared.message_history = NULL;
 
     if (shared.sock < 0) {

@@ -81,6 +81,20 @@ list_t *list_insert_after(list_t *node, void *data) {
     return new_list_t;
 }
 
+
+void list_insert_end(list_t *node, void *data)
+{
+
+
+    list_t *iter;
+    iter = node;
+    while (iter->next!=NULL)
+    {
+        iter = iter->next;
+    }
+    list_insert_after(iter, data);
+}
+
 list_t *list_insert_before(list_t *node, void *data) {
     list_t *new_list_t = new_list(data);
     if (!new_list_t)

@@ -19,7 +19,8 @@ static void *receiver_routine_voidptr(void *ptr) {
     return NULL;
 }
 
-int receiver_routine (client_shared_data_t *shared) {
+int receiver_routine (client_shared_data_t *shared)
+{
     while (shared->is_running)
     {
         rendered_message_t *msg = malloc(sizeof(rendered_message_t));
@@ -30,21 +31,27 @@ int receiver_routine (client_shared_data_t *shared) {
         pthread_mutex_lock(&shared->history_mutex);
 
 #define ID(iter) (((server_message_t *)((iter)->data))->id)
-       // printf("current_message= %d ;first_mes = %d\n", msg->msg.id,(ID(shared->history_head)));
-        if (!shared->history_head) {
-            shared->history_head = shared->history_tail = new_list(msg);
-        } else if (ID(shared->history_head) > msg->msg.id) {
-            shared->history_head = list_insert_before(shared->history_head, msg);
-        } else if (ID(shared->history_tail) < msg->msg.id) {
-            shared->history_tail = list_insert_after(shared->history_tail, msg);
-        } else {
-            list_t *iter = shared->history_head;
-            while (ID(iter) < msg->msg.id)
-                iter = iter->next;
-            list_insert_before(iter, msg);
-        }
+
+        if(shared->history_head)
+                list_insert_end(shared->history_head, msg);
+         else shared->history_head=new_list(msg);
+
 #undef ID
 
+        list_t *iter;
+        iter = shared->history_head;
+        while (iter )
+        {
+            rendered_message_t *current=iter->data;
+            iter = iter->next;
+        }
+        list_t *iter1;
+        iter1 = shared->history_tail;
+        while (iter1 )
+        {
+            rendered_message_t *current=iter1->data;
+            iter1 = iter1->next;
+        }
         pthread_mutex_unlock(&shared->history_mutex);
         pthread_cond_signal(&shared->display_cond);
     }
@@ -232,10 +239,13 @@ int display_output_routine (client_shared_data_t *shared) {
         pthread_mutex_unlock(&shared->cursor_mutex);
 
        output_msg(shared, window, cursor, max_pos);
+       //shared->history_head=NULL;
+       //shared->history_tail=NULL;
     }
     pthread_mutex_unlock(&shared->history_mutex);
 
     delwin(window);
+
     return 0;
 }
 

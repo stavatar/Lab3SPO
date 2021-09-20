@@ -32,6 +32,7 @@ typedef struct client_shared_data {
 list_t *new_list(void *data);
 list_t *list_insert_after(list_t *node, void *data);
 list_t *list_insert_before(list_t *node, void *data);
+void  list_insert_end(list_t *node, void *data);
 void list_remove(list_t *node);
 void create_message(char *buf, size_t buflen, server_message_t *msg,char *name_client);
 void show_message(WINDOW *window, server_message_t *msg);
